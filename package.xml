@@ -3,9 +3,9 @@
 <package format="3">
   <name>ros_bridge_gym</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="ts@todo.todo">ts</maintainer>
-  <license>TODO: License declaration</license>
+  <description>OpenAI Gym with ROS2-to-ROS1 bridge</description>
+  <maintainer email="tianshi.yin@gmail.com">TS, Yin</maintainer>
+  <license>MIT</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

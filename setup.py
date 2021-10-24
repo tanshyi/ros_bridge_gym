@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='ts',
-    maintainer_email='ts@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    maintainer='TS, Yin',
+    maintainer_email='tianshi.yin@gmail.com',
+    description='OpenAI Gym with ROS2-to-ROS1 bridge',
+    license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
