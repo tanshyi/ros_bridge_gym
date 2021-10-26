@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'lab_ddpg = ros_bridge_gym.lab_ddpg:main'
+            'lab_ddpg = ros_bridge_gym.lab_ddpg:main',
+            'gym_ddpg = ros_bridge_gym.gym_ddpg:main'
         ],
     },
 )

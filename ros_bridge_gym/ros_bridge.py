@@ -1,7 +1,8 @@
+import json
 import numpy as np
 
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 
 
 class BridgeNode(Node):
@@ -24,6 +25,12 @@ class BridgeNode(Node):
             qos_profile = 10
         )
 
+        self._command_pub = self.create_publisher(
+            msg_type = String,
+            topic = 'bridge_command',
+            qos_profile = 10
+        )
+
 
     def _bridge_state(self, msg):
         self._state = np.float64(msg.data)
@@ -43,5 +50,11 @@ class BridgeNode(Node):
         msg.data = action
         self._action_pub.publish(msg)
         self._action = np.float64(action)
+
+    
+    def send_command(self, command):
+        msg = String()
+        msg.data = json.dumps(command)
+        self._command_pub.publish(msg)
 
 
