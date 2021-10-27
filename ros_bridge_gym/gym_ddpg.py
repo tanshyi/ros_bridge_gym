@@ -1,3 +1,5 @@
+import time
+import threading
 import numpy as np
 
 from stable_baselines3 import DDPG
@@ -12,12 +14,13 @@ from .ros_gym import GymLab, GymLabNode
 class GymDDPG(GymLabNode):
 
     def __init__(self):
-        super().__init__(name='gymlab_ddpg')
-        self._timer = self.create_timer(5, self._timer_callback)
+        super().__init__(name='gymlab_ddpg', speed_limit=(0.2,0.7))
+        self._timer = self.create_timer(1, self._timer_callback)
+        self._ready = threading.Event()
         self._training = False
 
     def _timer_callback(self):
-        self.train()
+        self._ready.set()
 
 
     def train(self):
@@ -25,6 +28,7 @@ class GymDDPG(GymLabNode):
             return
         else:
             self._training = True
+            self._ready.wait(timeout=None)
             self.get_logger().info("training begin")
         
         env = GymLab(node=self)
@@ -42,6 +46,7 @@ def main(args=None):
 
     node = GymDDPG()
     try:
+        threading.Thread(target=node.train).start()
         rclpy.spin(node, executor=MultiThreadedExecutor(4))
     finally:
         node.destroy_node()

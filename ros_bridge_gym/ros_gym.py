@@ -25,7 +25,7 @@ class GymLab(gym.Env):
 
 class GymLabNode(BridgeNode):
 
-    def __init__(self, name='gymlab', step_time=0.1, speed_limit=0.26, range_limit=0.25, norm_dist_limit=2.):
+    def __init__(self, name='gymlab', step_time=0.1, speed_limit=(0,0.3), range_limit=0.25, norm_dist_limit=2.):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
 
@@ -36,20 +36,21 @@ class GymLabNode(BridgeNode):
 
 
     def sleep(self, seconds):
-        begin = time.time()
-        while time.time() - begin < seconds:
-            self._rate.sleep()
+        #begin = time.time()
+        #while time.time() - begin < seconds:
+            #self._rate.sleep()
+        time.sleep(seconds)
 
     
     def gym_action_space(self):
         low = (-1.,0.)
         high = (1.,1.)
-        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float64)
+        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
 
     def gym_observation_space(self):
         low = [-1.,0.,-3.15,0.] + [0.] * 24
         high = [1.,1.,3.15,self.norm_dist_limit] + [3.51] * 24
-        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float64)
+        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
 
 
     def gym_reset(self):
@@ -66,7 +67,9 @@ class GymLabNode(BridgeNode):
 
     def gym_step(self, action):
         vel_az = action[0]
-        vel_lx = action[1] * self.speed_limit
+
+        sl, sh = self.speed_limit
+        vel_lx = action[1] * (sh-sl) + sl
 
         self.action = [vel_az, vel_lx]
         self.sleep(self.step_time)
