@@ -43,13 +43,14 @@ class GymLabNode(BridgeNode):
 
     
     def gym_action_space(self):
-        low = (-1.,0.)
+        low = (-1.,-1.)
         high = (1.,1.)
         return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
 
     def gym_observation_space(self):
-        low = [-1.,0.,-3.15,0.] + [0.] * 24
-        high = [1.,1.,3.15,self.norm_dist_limit] + [3.51] * 24
+        sl, sh = self.speed_limit
+        low = [-1.,float(sl),-3.15,0.] + [0.] * 24
+        high = [1.,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24
         return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
 
 
@@ -69,7 +70,7 @@ class GymLabNode(BridgeNode):
         vel_az = action[0]
 
         sl, sh = self.speed_limit
-        vel_lx = action[1] * (sh-sl) + sl
+        vel_lx = ((action[1] + 1) / 2) * (sh-sl) + sl
 
         self.action = [vel_az, vel_lx]
         self.sleep(self.step_time)
