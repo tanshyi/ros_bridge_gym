@@ -1,20 +1,19 @@
-import time
 import threading
 import numpy as np
 
 from stable_baselines3 import DDPG
-from stable_baselines3.common.noise import NormalActionNoise
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 
 from .ros_gym import GymLab, GymLabNode
+from .noise import EpsilonNormalActionNoise
 
 
 class GymDDPG(GymLabNode):
 
     def __init__(self):
-        super().__init__(name='gymlab_ddpg', speed_limit=(0.2,0.7))
+        super().__init__(name='gymlab_ddpg')
         self._timer = self.create_timer(1, self._timer_callback)
         self._ready = threading.Event()
         self._training = False
@@ -35,9 +34,20 @@ class GymDDPG(GymLabNode):
 
         # The noise objects for DDPG
         n_actions = env.action_space.shape[-1]
-        action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+        action_noise = EpsilonNormalActionNoise(mean=np.zeros(n_actions), sigma=np.ones(n_actions))
 
-        model = DDPG("MlpPolicy", env, action_noise=action_noise, verbose=1)
+        model = DDPG(
+            policy="MlpPolicy", 
+            env=env,
+            action_noise=action_noise,
+            train_freq=(50, 'step'),
+            learning_rate=lambda x: x * 0.002,
+            gamma=0.9,
+            tau=0.3,
+            learning_starts=2000,
+            batch_size=512,
+            verbose=1
+        )
         model.learn(total_timesteps=10000, log_interval=10)
 
 

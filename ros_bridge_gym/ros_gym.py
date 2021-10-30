@@ -25,14 +25,26 @@ class GymLab(gym.Env):
 
 class GymLabNode(BridgeNode):
 
-    def __init__(self, name='gymlab', step_time=0.1, speed_limit=(0,0.3), range_limit=0.25, norm_dist_limit=2.):
+    def __init__(self, name='gymlab', 
+            reset_time=5, 
+            step_time=0.2, 
+            angle_limit=0.3, 
+            speed_limit=(0.1,0.3), 
+            range_limit=0.25, 
+            norm_dist_limit=2.,
+            action_in_state=False
+    ):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
 
+        self.reset_time = reset_time
         self.step_time = step_time
+        self.angle_limit = angle_limit
         self.speed_limit = speed_limit
+        self.speed_limit_mean = np.array(speed_limit).mean()
         self.range_limit = range_limit
         self.norm_dist_limit = norm_dist_limit
+        self.action_in_state = action_in_state
 
 
     def sleep(self, seconds):
@@ -49,9 +61,12 @@ class GymLabNode(BridgeNode):
 
     def gym_observation_space(self):
         sl, sh = self.speed_limit
-        low = np.float32([-1.,float(sl),-3.15,0.] + [0.] * 24)
-        high = np.float32([1.,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24)
-        return spaces.Box(low=low, high=high, dtype=np.float32)
+        low = np.float32([-self.angle_limit,float(sl),-3.15,0.] + [0.] * 24)
+        high = np.float32([self.angle_limit,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24)
+        if self.action_in_state:
+            return spaces.Box(low=low, high=high, dtype=np.float32)
+        else:
+            return spaces.Box(low=low[2:], high=high[2:], dtype=np.float32)
 
 
     def gym_reset(self):
@@ -62,12 +77,15 @@ class GymLabNode(BridgeNode):
             target_y = self._target[1]
         )
         self.send_command(cmd)
-        self.sleep(3)
-        return self.observe()
+        self.sleep(self.reset_time)
+        if self.action_in_state:
+            return self.observe()
+        else:
+            return np.float32(self.observe()[2:])
 
 
     def gym_step(self, action):
-        vel_az = float(action[0])
+        vel_az = float(action[0]) * self.angle_limit
 
         sl, sh = self.speed_limit
         vel_lx = ((float(action[1]) + 1) / 2) * (sh-sl) + sl
@@ -77,7 +95,10 @@ class GymLabNode(BridgeNode):
 
         obs = self.observe()
         reward, done = self.reward_done(obs)
-        return obs, reward, done, dict()
+        if self.action_in_state:
+            return obs, reward, done, dict()
+        else:
+            return np.float32(obs[2:]), reward, done, dict()
 
         
     def observe(self):
@@ -116,13 +137,15 @@ class GymLabNode(BridgeNode):
 
         vel_az = float(obs[0])
         vel_lx = float(obs[1])
+        angle_diff = float(obs[2])
         norm_dist = float(obs[3])
         lazer_scans = obs[4:]
 
         target_x, target_y = self._target
         target_dist = norm_dist * math.sqrt(target_x**2 + target_y**2)
         
-        distance_reward = 0.0 - abs(norm_dist * 100)
+        r_angle = max(0.0, (0.1 - abs(angle_diff) / math.pi) * 450)
+        r_distance = 0.0 - abs(norm_dist * 100)
 
         #laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
         lazer_min = min(lazer_scans)
@@ -136,31 +159,34 @@ class GymLabNode(BridgeNode):
         else:
             laser_crashed_reward = 0
         
-        #collision_reward = laser_reward + laser_crashed_reward
-        collision_reward = laser_crashed_reward
+        #r_collision = laser_reward + laser_crashed_reward
+        r_collision = laser_crashed_reward
         
-        if abs(vel_az) > 0.8:
-            angular_punish_reward = -10
+        if abs(vel_az) > 0.05:
+            angular_punish_reward = -100.0 * abs(vel_az)
         else:
-            angular_punish_reward = 0
+            angular_punish_reward = 20 - 200.0 * abs(vel_az)
 
-        if vel_lx < 0.2:
-            linear_punish_reward = -2
+        if vel_lx < self.speed_limit_mean:
+            linear_punish_reward = 20.0 * (vel_lx - self.speed_limit_mean)
         else:
             linear_punish_reward = 0
+
+        r_vel = angular_punish_reward + linear_punish_reward
 
         if target_dist < (3 * self.range_limit):
             self.get_logger().info("DONE: Reached")
             done = True
-            arrive_reward = 100
+            r_arrive = 100
         elif norm_dist > (self.norm_dist_limit - 0.1):
             self.get_logger().info("DONE: Beyond Range")
             done = True
-            arrive_reward = -100
+            r_arrive = -100
         else:
-            arrive_reward = 0
+            r_arrive = 0
             
-        reward = float(distance_reward + arrive_reward + collision_reward + angular_punish_reward + linear_punish_reward)
-        self.get_logger().info(f'r:{reward:.2f} dis_r:{distance_reward:.2f} col_r:{collision_reward:.2f} arr_r:{arrive_reward:.2f}')
+        #reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
+        reward = float(r_angle + r_vel)
+        self.get_logger().info(f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}')
         return reward, done
 
