@@ -43,15 +43,15 @@ class GymLabNode(BridgeNode):
 
     
     def gym_action_space(self):
-        low = (-1.,-1.)
-        high = (1.,1.)
-        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
+        low = np.float32([-1.,-1.])
+        high = np.float32([1.,1.])
+        return spaces.Box(low=low, high=high, dtype=np.float32)
 
     def gym_observation_space(self):
         sl, sh = self.speed_limit
-        low = [-1.,float(sl),-3.15,0.] + [0.] * 24
-        high = [1.,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24
-        return spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
+        low = np.float32([-1.,float(sl),-3.15,0.] + [0.] * 24)
+        high = np.float32([1.,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24)
+        return spaces.Box(low=low, high=high, dtype=np.float32)
 
 
     def gym_reset(self):
@@ -67,10 +67,10 @@ class GymLabNode(BridgeNode):
 
 
     def gym_step(self, action):
-        vel_az = action[0]
+        vel_az = float(action[0])
 
         sl, sh = self.speed_limit
-        vel_lx = ((action[1] + 1) / 2) * (sh-sl) + sl
+        vel_lx = ((float(action[1]) + 1) / 2) * (sh-sl) + sl
 
         self.action = [vel_az, vel_lx]
         self.sleep(self.step_time)
@@ -108,23 +108,23 @@ class GymLabNode(BridgeNode):
         # calculate normalised distance
         norm_dist = target_dist / math.sqrt(target_x**2 + target_y**2)
 
-        return [vel_az, vel_lx, angle_diff, norm_dist] + lazer_scans
+        return np.float32([vel_az, vel_lx, angle_diff, norm_dist] + lazer_scans)
 
 
     def reward_done(self, obs):
         done = False
 
-        vel_az = obs[0]
-        vel_lx = obs[1]
-        norm_dist = obs[3]
+        vel_az = float(obs[0])
+        vel_lx = float(obs[1])
+        norm_dist = float(obs[3])
         lazer_scans = obs[4:]
 
         target_x, target_y = self._target
         target_dist = norm_dist * math.sqrt(target_x**2 + target_y**2)
         
-        distance_reward = 0.0 - abs(norm_dist * 40)
+        distance_reward = 0.0 - abs(norm_dist * 100)
 
-        laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
+        #laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
         lazer_min = min(lazer_scans)
         lazer_crashed = bool(lazer_min < self.range_limit)
         if lazer_crashed:
@@ -136,7 +136,8 @@ class GymLabNode(BridgeNode):
         else:
             laser_crashed_reward = 0
         
-        collision_reward = laser_reward + laser_crashed_reward
+        #collision_reward = laser_reward + laser_crashed_reward
+        collision_reward = laser_crashed_reward
         
         if abs(vel_az) > 0.8:
             angular_punish_reward = -10
