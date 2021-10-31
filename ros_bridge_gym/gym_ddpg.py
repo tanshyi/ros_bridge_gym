@@ -11,6 +11,7 @@ from rclpy.executors import MultiThreadedExecutor
 
 from .ros_gym import GymLab, GymLabNode
 from .noise import RandomActionNoise
+from .callback import SaveOnBestTrainingRewardCallback
 
 
 def monitor(env, log_dir=None):
@@ -50,6 +51,8 @@ class GymDDPG(GymLabNode):
         #action_noise = EpsilonNormalActionNoise(mean=np.zeros(n_actions), sigma=np.ones(n_actions))
         action_noise = RandomActionNoise((n_actions,), scale=0.5)
 
+        callback = SaveOnBestTrainingRewardCallback(log_dir, save_replay=True)
+
         model = DDPG(
             policy="MlpPolicy", 
             env=env,
@@ -62,7 +65,7 @@ class GymDDPG(GymLabNode):
             batch_size=512,
             verbose=1
         )
-        model.learn(total_timesteps=100000, log_interval=10)
+        model.learn(total_timesteps=100000, log_interval=10, callback=callback)
 
 
 def main(args=None):
