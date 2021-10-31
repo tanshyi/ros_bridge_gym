@@ -13,7 +13,7 @@ from .noise import EpsilonNormalActionNoise
 class GymDDPG(GymLabNode):
 
     def __init__(self):
-        super().__init__(name='gymlab_ddpg')
+        super().__init__(name='gymlab_ddpg', action_in_state=True)
         self._timer = self.create_timer(1, self._timer_callback)
         self._ready = threading.Event()
         self._training = False
@@ -42,13 +42,13 @@ class GymDDPG(GymLabNode):
             action_noise=action_noise,
             train_freq=(50, 'step'),
             learning_rate=lambda x: x * 0.002,
-            gamma=0.9,
-            tau=0.3,
+            gamma=0.99,
+            tau=0.05,
             learning_starts=2000,
             batch_size=512,
             verbose=1
         )
-        model.learn(total_timesteps=10000, log_interval=10)
+        model.learn(total_timesteps=100000, log_interval=10)
 
 
 def main(args=None):

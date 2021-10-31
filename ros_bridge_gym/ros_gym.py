@@ -144,10 +144,11 @@ class GymLabNode(BridgeNode):
         target_x, target_y = self._target
         target_dist = norm_dist * math.sqrt(target_x**2 + target_y**2)
         
-        r_angle = max(0.0, (0.1 - abs(angle_diff) / math.pi) * 450)
-        r_distance = 0.0 - abs(norm_dist * 100)
+        r_angle = (max(0.0, (0.1 - abs(angle_diff) / math.pi) * 450)
+                + min(0.0, (0.1 - abs(angle_diff) / math.pi) * 50))
+        r_distance = 50.0 - abs(norm_dist * 100)
 
-        #laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
+        laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
         lazer_min = min(lazer_scans)
         lazer_crashed = bool(lazer_min < self.range_limit)
         if lazer_crashed:
@@ -159,8 +160,7 @@ class GymLabNode(BridgeNode):
         else:
             laser_crashed_reward = 0
         
-        #r_collision = laser_reward + laser_crashed_reward
-        r_collision = laser_crashed_reward
+        r_collision = laser_reward + laser_crashed_reward
         
         if abs(vel_az) > 0.05:
             angular_punish_reward = -100.0 * abs(vel_az)
@@ -185,8 +185,7 @@ class GymLabNode(BridgeNode):
         else:
             r_arrive = 0
             
-        #reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
-        reward = float(r_angle + r_vel)
+        reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
         self.get_logger().info(f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}')
         return reward, done
 
