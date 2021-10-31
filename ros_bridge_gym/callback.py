@@ -2,8 +2,22 @@ import os
 import datetime
 import numpy as np
 
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.results_plotter import load_results, ts2xy
+
+
+class ModelCheckpointCallback(CheckpointCallback):
+    
+    def __init__(self, save_freq: int, save_path: str, name_prefix: str = "rl_model", verbose: int = 0, save_replay=False):
+        super().__init__(save_freq, save_path, name_prefix=name_prefix, verbose=verbose)
+        self.save_replay = save_replay
+
+    def _on_step(self) -> bool:
+        super()._on_step()
+        if self.save_replay and self.n_calls % self.save_freq == 0:
+            path = os.path.join(self.save_path, f"{self.name_prefix}_{self.num_timesteps}_steps_replay")
+            self.model.save_replay_buffer(path)
+        return True
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):

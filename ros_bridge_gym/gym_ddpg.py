@@ -5,13 +5,14 @@ import numpy as np
 
 from stable_baselines3 import DDPG
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import CallbackList
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 
 from .ros_gym import GymLab, GymLabNode
 from .noise import RandomActionNoise
-from .callback import SaveOnBestTrainingRewardCallback
+from .callback import ModelCheckpointCallback, SaveOnBestTrainingRewardCallback
 
 
 def monitor(env, log_dir=None):
@@ -51,7 +52,10 @@ class GymDDPG(GymLabNode):
         #action_noise = EpsilonNormalActionNoise(mean=np.zeros(n_actions), sigma=np.ones(n_actions))
         action_noise = RandomActionNoise((n_actions,), scale=0.5)
 
-        callback = SaveOnBestTrainingRewardCallback(log_dir, save_replay=True)
+        callback = CallbackList([
+            ModelCheckpointCallback(1000, log_dir, save_replay=True),
+            SaveOnBestTrainingRewardCallback(log_dir, save_replay=True)
+        ])
 
         model = DDPG(
             policy="MlpPolicy", 
