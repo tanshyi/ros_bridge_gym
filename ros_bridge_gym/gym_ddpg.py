@@ -7,7 +7,7 @@ import rclpy
 from rclpy.executors import MultiThreadedExecutor
 
 from .ros_gym import GymLab, GymLabNode
-from .noise import EpsilonNormalActionNoise
+from .noise import RandomActionNoise
 
 
 class GymDDPG(GymLabNode):
@@ -34,17 +34,18 @@ class GymDDPG(GymLabNode):
 
         # The noise objects for DDPG
         n_actions = env.action_space.shape[-1]
-        action_noise = EpsilonNormalActionNoise(mean=np.zeros(n_actions), sigma=np.ones(n_actions))
+        #action_noise = EpsilonNormalActionNoise(mean=np.zeros(n_actions), sigma=np.ones(n_actions))
+        action_noise = RandomActionNoise((n_actions,), scale=0.5)
 
         model = DDPG(
             policy="MlpPolicy", 
             env=env,
             action_noise=action_noise,
-            train_freq=(50, 'step'),
-            learning_rate=lambda x: x * 0.002,
-            gamma=0.99,
-            tau=0.05,
-            learning_starts=2000,
+            train_freq=(10, 'step'),
+            learning_rate=lambda x: x * 0.0002,
+            gamma=0.9,
+            tau=0.01,
+            learning_starts=1000,
             batch_size=512,
             verbose=1
         )

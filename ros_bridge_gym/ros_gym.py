@@ -28,8 +28,8 @@ class GymLabNode(BridgeNode):
     def __init__(self, name='gymlab', 
             reset_time=5, 
             step_time=0.2, 
-            angle_limit=0.3, 
-            speed_limit=(0.1,0.3), 
+            angle_limit=1.0, 
+            speed_limit=(0.05,0.35), 
             range_limit=0.25, 
             norm_dist_limit=2.,
             action_in_state=False
@@ -62,7 +62,7 @@ class GymLabNode(BridgeNode):
     def gym_observation_space(self):
         sl, sh = self.speed_limit
         low = np.float32([-self.angle_limit,float(sl),-3.15,0.] + [0.] * 24)
-        high = np.float32([self.angle_limit,float(sh),3.15,self.norm_dist_limit] + [3.51] * 24)
+        high = np.float32([self.angle_limit,float(sh),3.15,self.norm_dist_limit] + [1.] * 24)
         if self.action_in_state:
             return spaces.Box(low=low, high=high, dtype=np.float32)
         else:
@@ -78,6 +78,8 @@ class GymLabNode(BridgeNode):
         )
         self.send_command(cmd)
         self.sleep(self.reset_time)
+
+        self._prev_state = self.state.copy()
         if self.action_in_state:
             return self.observe()
         else:
@@ -90,6 +92,7 @@ class GymLabNode(BridgeNode):
         sl, sh = self.speed_limit
         vel_lx = ((float(action[1]) + 1) / 2) * (sh-sl) + sl
 
+        self._prev_state = self.state.copy()
         self.action = [vel_az, vel_lx]
         self.sleep(self.step_time)
 
@@ -108,7 +111,7 @@ class GymLabNode(BridgeNode):
         bot_angle = float(state[3])
         vel_lx = float(state[4])
         vel_az = float(state[5])
-        lazer_scans = state[6:].tolist()
+        lazer_scans = (state[6:] / 3.5).tolist()
 
         target_x, target_y = self._target
         target_dist = math.sqrt((target_x - pos_x)**2 + (target_y - pos_y)**2)
@@ -143,13 +146,19 @@ class GymLabNode(BridgeNode):
 
         target_x, target_y = self._target
         target_dist = norm_dist * math.sqrt(target_x**2 + target_y**2)
+
+        prev_pos_x = float(self._prev_state[0])
+        prev_pos_y = float(self._prev_state[1])
+        prev_target_dist = math.sqrt((target_x - prev_pos_x)**2 + (target_y - prev_pos_y)**2)
         
         r_angle = (max(0.0, (0.1 - abs(angle_diff) / math.pi) * 450)
                 + min(0.0, (0.1 - abs(angle_diff) / math.pi) * 50))
-        r_distance = 50.0 - abs(norm_dist * 100)
+        #r_distance = 50.0 - abs(norm_dist * 100)
+        r_distance = (prev_target_dist - target_dist)*(5/self.step_time)*1.2*7
 
-        laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1.5) * 20
-        lazer_min = min(lazer_scans)
+        #laser_reward = (sum(lazer_scans)/len(lazer_scans) - 1) * 20
+        laser_reward = sum(lazer_scans) - len(lazer_scans)
+        lazer_min = min(lazer_scans) * 3.5
         lazer_crashed = bool(lazer_min < self.range_limit)
         if lazer_crashed:
             self.get_logger().info("DONE: Crashed")
@@ -162,13 +171,16 @@ class GymLabNode(BridgeNode):
         
         r_collision = laser_reward + laser_crashed_reward
         
-        if abs(vel_az) > 0.05:
-            angular_punish_reward = -100.0 * abs(vel_az)
+        if abs(vel_az) > 0.1:
+            #angular_punish_reward = -100.0 * abs(vel_az)
+            angular_punish_reward = -1
         else:
-            angular_punish_reward = 20 - 200.0 * abs(vel_az)
+            #angular_punish_reward = 20 - 200.0 * abs(vel_az)
+            angular_punish_reward = 0
 
         if vel_lx < self.speed_limit_mean:
-            linear_punish_reward = 20.0 * (vel_lx - self.speed_limit_mean)
+            #linear_punish_reward = 20.0 * (vel_lx - self.speed_limit_mean)
+            linear_punish_reward = -2
         else:
             linear_punish_reward = 0
 
@@ -185,7 +197,8 @@ class GymLabNode(BridgeNode):
         else:
             r_arrive = 0
             
-        reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
+        #reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
+        reward = float(r_distance + r_collision + r_vel + r_arrive)
         self.get_logger().info(f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}')
         return reward, done
 
