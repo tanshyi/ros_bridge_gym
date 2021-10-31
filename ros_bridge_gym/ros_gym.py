@@ -1,4 +1,5 @@
 import time
+import random
 import math
 import numpy as np
 import gym
@@ -26,18 +27,20 @@ class GymLab(gym.Env):
 class GymLabNode(BridgeNode):
 
     def __init__(self, name='gymlab', 
+            targets=[(1.,0.)],
             reset_time=5, 
             step_time=0.2, 
             angle_limit=1.0, 
             speed_limit=(0.05,0.35), 
             range_limit=0.25, 
             norm_dist_limit=2.,
-            action_in_state=False,
+            action_in_state=True,
             max_step_per_episode=500
     ):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
 
+        self.targets = targets
         self.reset_time = reset_time
         self.step_time = step_time
         self.angle_limit = angle_limit
@@ -74,7 +77,7 @@ class GymLabNode(BridgeNode):
     def gym_reset(self):
         self._epi_step = 0
 
-        self._target = (4.,0.)
+        self._target = random.choice(self.targets)
         cmd = dict(
             command = 'reset',
             target_x = self._target[0],

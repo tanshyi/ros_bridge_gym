@@ -25,10 +25,20 @@ def monitor(env, log_dir=None):
     return Monitor(env, log_dir), log_dir
 
 
+train_targets = [
+    (4.,-1.),
+    (7.,1.),
+    (9.,-2.),
+    (0.,7.),
+    (-3.,1.),
+    (-4.,-1.),
+    (-8.,1.)
+]
+
 class GymDDPG(GymLabNode):
 
     def __init__(self):
-        super().__init__(name='gymlab_ddpg', action_in_state=True)
+        super().__init__(name='gymlab_ddpg', targets=train_targets)
         self._timer = self.create_timer(1, self._timer_callback)
         self._ready = threading.Event()
         self._training = False
