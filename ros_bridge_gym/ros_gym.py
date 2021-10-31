@@ -32,7 +32,8 @@ class GymLabNode(BridgeNode):
             speed_limit=(0.05,0.35), 
             range_limit=0.25, 
             norm_dist_limit=2.,
-            action_in_state=False
+            action_in_state=False,
+            max_step_per_episode=500
     ):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
@@ -45,6 +46,7 @@ class GymLabNode(BridgeNode):
         self.range_limit = range_limit
         self.norm_dist_limit = norm_dist_limit
         self.action_in_state = action_in_state
+        self.max_step_per_episode = max_step_per_episode
 
 
     def sleep(self, seconds):
@@ -70,6 +72,8 @@ class GymLabNode(BridgeNode):
 
 
     def gym_reset(self):
+        self._epi_step = 0
+
         self._target = (4.,0.)
         cmd = dict(
             command = 'reset',
@@ -97,7 +101,17 @@ class GymLabNode(BridgeNode):
         self.sleep(self.step_time)
 
         obs = self.observe()
-        reward, done = self.reward_done(obs)
+        reward, reward_log, done, done_msg = self.reward_done(obs)
+
+        self._epi_step += 1
+        if self._epi_step >= self.max_step_per_episode and not done:
+            done = True
+            done_msg = "DONE: Episode Max Step"
+        
+        self.get_logger().info(f'[{self._epi_step}] {reward_log}')
+        if done:
+            self.get_logger().info(done_msg)
+
         if self.action_in_state:
             return obs, reward, done, dict()
         else:
@@ -137,6 +151,7 @@ class GymLabNode(BridgeNode):
 
     def reward_done(self, obs):
         done = False
+        done_msg = None
 
         vel_az = float(obs[0])
         vel_lx = float(obs[1])
@@ -161,7 +176,7 @@ class GymLabNode(BridgeNode):
         lazer_min = min(lazer_scans) * 3.5
         lazer_crashed = bool(lazer_min < self.range_limit)
         if lazer_crashed:
-            self.get_logger().info("DONE: Crashed")
+            done_msg = "DONE: Crashed"
             done = True
             laser_crashed_reward = -200
         elif lazer_min < (2 * self.range_limit):
@@ -187,11 +202,11 @@ class GymLabNode(BridgeNode):
         r_vel = angular_punish_reward + linear_punish_reward
 
         if target_dist < (3 * self.range_limit):
-            self.get_logger().info("DONE: Reached")
+            done_msg = "DONE: Reached"
             done = True
             r_arrive = 100
         elif norm_dist > (self.norm_dist_limit - 0.1):
-            self.get_logger().info("DONE: Beyond Range")
+            done_msg = "DONE: Beyond Range"
             done = True
             r_arrive = -100
         else:
@@ -199,6 +214,6 @@ class GymLabNode(BridgeNode):
             
         #reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
         reward = float(r_distance + r_collision + r_vel + r_arrive)
-        self.get_logger().info(f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}')
-        return reward, done
+        reward_log = f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}'
+        return reward, reward_log, done, done_msg
 
