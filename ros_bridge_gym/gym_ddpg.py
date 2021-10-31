@@ -69,7 +69,7 @@ class GymDDPG(GymLabNode):
             batch_size=512,
             verbose=1
         )
-        model.learn(total_timesteps=100000, log_interval=10, callback=callback)
+        model.learn(total_timesteps=200000, log_interval=10, callback=callback)
 
 
 def main(args=None):

@@ -30,7 +30,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
       It must contains the file created by the ``Monitor`` wrapper.
     :param verbose: Verbosity level.
     """
-    def __init__(self, log_dir, check_freq=1000, check_episodes=5, save_replay=False, verbose=1):
+    def __init__(self, log_dir, check_freq=200, check_episodes=5, save_replay=False, verbose=1):
         super().__init__(verbose)
         self.log_dir = log_dir
         self.save_path = os.path.join(log_dir, 'best_model')
@@ -39,6 +39,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         self.check_episodes = check_episodes
         self.save_replay = save_replay
         self.best_mean_reward = -np.inf
+        self.best_replay = None
 
 
     def _init_callback(self) -> None:
@@ -76,7 +77,10 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
             self.model.save(model_path)
 
             if self.save_replay:
+                if self.best_replay is not None and os.path.exists(self.best_replay):
+                    os.remove(self.best_replay)
                 self.model.save_replay_buffer(replay_path)
+                self.best_replay = f'{replay_path}.pkl'
 
         return True
 
