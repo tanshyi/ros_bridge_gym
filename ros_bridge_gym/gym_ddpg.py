@@ -1,13 +1,26 @@
+import os
+import datetime
 import threading
 import numpy as np
 
 from stable_baselines3 import DDPG
+from stable_baselines3.common.monitor import Monitor
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 
 from .ros_gym import GymLab, GymLabNode
 from .noise import RandomActionNoise
+
+
+def monitor(env, log_dir=None):
+    if log_dir is None:
+        home = os.path.expanduser('~')
+        now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_dir = os.path.join(home, 'Workspace', 'ros_gym', f'monitor_{now}')
+
+    os.makedirs(log_dir, exist_ok=True)
+    return Monitor(env, log_dir), log_dir
 
 
 class GymDDPG(GymLabNode):
@@ -30,7 +43,7 @@ class GymDDPG(GymLabNode):
             self._ready.wait(timeout=None)
             self.get_logger().info("training begin")
         
-        env = GymLab(node=self)
+        env, log_dir = monitor(GymLab(node=self))
 
         # The noise objects for DDPG
         n_actions = env.action_space.shape[-1]
