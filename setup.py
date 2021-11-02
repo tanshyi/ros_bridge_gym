@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'lab_ddpg = ros_bridge_gym.lab_ddpg:main',
-            'gym_ddpg = ros_bridge_gym.gym_ddpg:main'
+            'gym_ddpg = ros_bridge_gym.gym_ddpg:main',
+            'gym_ppo = ros_bridge_gym.gym_ppo:main'
         ],
     },
 )
