@@ -9,6 +9,10 @@ class Task(object):
         self.x = x
         self.y = y
         self.done = False
+        self.status = None
+        self.reward = 0.
+        self.time = 0.
+        self.steps = 0
 
 
 class TaskQueue(object):

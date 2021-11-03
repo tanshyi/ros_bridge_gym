@@ -9,19 +9,19 @@ from .lab_node import Task, TaskQueue
 
 
 eval_targets = [
-    (4.,-1.),
+    (9.,-1.),
     (7.,1.),
-    (9.,-2.),
-    (0.,7.),
+    (4.,-1.),
+    (0.,4.),
     (-3.,1.),
-    (-4.,-1.),
+    (-4.,0.),
     (-8.,1.)
 ]
 
 class LabDDPG(GymLabNode):
 
     def __init__(self):
-        super().__init__(name='lab_ddpg')
+        super().__init__(name='lab_ddpg', reset_time=3)
         self._timer = self.create_timer(1, self._timer_callback)
         self._ready = threading.Event()
         self._queue = TaskQueue()
@@ -37,18 +37,26 @@ class LabDDPG(GymLabNode):
         m = DDPG.load(model_path)
 
         self._ready.wait(timeout=None)
+        self.gym_reset(robot=(0.,0.))
+
         while True:
             task = self._queue.get()
-            self.targets = [(task.x, task.y)]
+            self.get_logger().info(f'task begin: [{task.x:.1f}, {task.y:.1f}]')
 
-            done = False
-            obs = self.gym_reset()
-            while not done:
+            obs = self.gym_reset(target=(task.x, task.y))
+            while not task.done:
                 action, _ = m.predict(obs)
-                obs, reward, done, _ = self.gym_step(action)
+                obs, reward, task.done, _ = self.gym_step(action)
+                task.reward += reward
+                task.steps += 1
 
-            task.done = True
-            self.get_logger().info(f'task done: [{self._status}]')
+            task.status = self.episode_status
+            if task.status == 'reached':
+                self.gym_reset(target=(task.x, task.y))
+            else:
+                self.gym_reset(target=(task.x, task.y), robot=(0.,0.))
+            
+            self.get_logger().info(f'task done: [{task.status}] steps: {task.steps} reward: {task.reward:.1f}')
 
 
 def main(args=None):

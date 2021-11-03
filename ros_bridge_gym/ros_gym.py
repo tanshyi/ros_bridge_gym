@@ -17,7 +17,7 @@ class GymLab(gym.Env):
         self.observation_space = node.gym_observation_space()
 
     def reset(self):
-        return self._node.gym_reset()
+        return self._node.gym_reset(robot=(0.,0.))
 
     def step(self, action):
         return self._node.gym_step(action)
@@ -26,6 +26,7 @@ class GymLab(gym.Env):
 class GymLabNode(BridgeNode):
 
     def __init__(self, name='gymlab', 
+            verbose=False,
             targets=[(1.,0.)],
             reset_time=5, 
             step_time=0.2, 
@@ -38,7 +39,9 @@ class GymLabNode(BridgeNode):
     ):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
+        self._verbose = verbose
         self._status = None
+        self._epi_step = 0
 
         self.targets = targets
         self.reset_time = reset_time
@@ -53,8 +56,12 @@ class GymLabNode(BridgeNode):
 
 
     @property
-    def status(self):
+    def episode_status(self):
         return self._status
+
+    @property
+    def episode_steps(self):
+        return self._epi_step
 
 
     def sleep(self, seconds):
@@ -79,16 +86,21 @@ class GymLabNode(BridgeNode):
             return spaces.Box(low=low[2:], high=high[2:], dtype=np.float32)
 
 
-    def gym_reset(self):
+    def gym_reset(self, robot=None, target=None):
         self._status = None
         self._epi_step = 0
 
-        self._target = random.choice(self.targets)
+        if target is None:
+            self._target = random.choice(self.targets)
+        else:
+            self._target = target
         cmd = dict(
             command = 'reset',
-            target_x = self._target[0],
-            target_y = self._target[1]
+            target = dict(x = self._target[0], y = self._target[1])
         )
+        if robot is not None:
+            cmd['robot'] = dict(x = robot[0], y = robot[1]) 
+            
         self.send_command(cmd)
         self.sleep(self.reset_time)
 
@@ -118,9 +130,10 @@ class GymLabNode(BridgeNode):
             done = True
             done_msg = "DONE: Episode Max Step"
         
-        self.get_logger().info(f'[{self._epi_step}] {reward_log}')
-        if done:
-            self.get_logger().info(done_msg)
+        if self._verbose:
+            self.get_logger().info(f'[{self._epi_step}] {reward_log}')
+            if done:
+                self.get_logger().info(done_msg)
 
         if self.action_in_state:
             return obs, reward, done, dict()
