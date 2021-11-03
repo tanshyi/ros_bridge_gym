@@ -4,7 +4,6 @@ import math
 import numpy as np
 import gym
 from gym import spaces
-from numpy.lib.function_base import angle
 
 from .ros_bridge import BridgeNode
 
@@ -39,6 +38,7 @@ class GymLabNode(BridgeNode):
     ):
         super().__init__(name=name)
         self._rate = self.create_rate(100)
+        self._status = None
 
         self.targets = targets
         self.reset_time = reset_time
@@ -50,6 +50,11 @@ class GymLabNode(BridgeNode):
         self.norm_dist_limit = norm_dist_limit
         self.action_in_state = action_in_state
         self.max_step_per_episode = max_step_per_episode
+
+
+    @property
+    def status(self):
+        return self._status
 
 
     def sleep(self, seconds):
@@ -75,6 +80,7 @@ class GymLabNode(BridgeNode):
 
 
     def gym_reset(self):
+        self._status = None
         self._epi_step = 0
 
         self._target = random.choice(self.targets)
@@ -108,6 +114,7 @@ class GymLabNode(BridgeNode):
 
         self._epi_step += 1
         if self._epi_step >= self.max_step_per_episode and not done:
+            self._status = "timeout"
             done = True
             done_msg = "DONE: Episode Max Step"
         
@@ -179,6 +186,7 @@ class GymLabNode(BridgeNode):
         lazer_min = min(lazer_scans) * 3.5
         lazer_crashed = bool(lazer_min < self.range_limit)
         if lazer_crashed:
+            self._status = "crashed"
             done_msg = "DONE: Crashed"
             done = True
             laser_crashed_reward = -200
@@ -205,10 +213,12 @@ class GymLabNode(BridgeNode):
         r_vel = angular_punish_reward + linear_punish_reward
 
         if target_dist < (3 * self.range_limit):
+            self._status = "reached"
             done_msg = "DONE: Reached"
             done = True
             r_arrive = 100
         elif norm_dist > (self.norm_dist_limit - 0.1):
+            self._status = "beyond"
             done_msg = "DONE: Beyond Range"
             done = True
             r_arrive = -100
@@ -217,6 +227,7 @@ class GymLabNode(BridgeNode):
             
         #reward = float(r_angle + r_distance + r_collision + r_vel + r_arrive)
         reward = float(r_distance + r_collision + r_vel + r_arrive)
-        reward_log = f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}'
+        #reward_log = f'r:{reward:.2f} ang_r:{r_angle:.1f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}'
+        reward_log = f'r:{reward:.2f} dis_r:{r_distance:.1f} col_r:{r_collision:.1f} vel_r:{r_vel:.1f} arr_r:{r_arrive:.1f}'
         return reward, reward_log, done, done_msg
 
